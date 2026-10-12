@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#fde3a7">
+<title>링크 도우미</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--bg:#f7f5ef;--panel:#fff;--ink:#1d2a26;--muted:#5d6b66;--line:#e2ddd0;--accent:#0f7a5c;--accent-ink:#fff;--warm:#fde3a7;--warm-line:#f0c97a;--warm-ink:#4f3500;--err:#b42318}
+@media (prefers-color-scheme:dark){:root{--bg:#151a18;--panel:#1e2522;--ink:#ecf1ee;--muted:#a8b5b0;--line:#33403b;--accent:#4cc9a0;--accent-ink:#0b1a14;--warm:#4a3a16;--warm-line:#7a6125;--warm-ink:#fde3a7;--err:#ff8a7a;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 24px)}
+main{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:22px;margin:0;letter-spacing:-.5px}
+p{margin:0;color:var(--muted);font-size:14px}
+button{font:inherit;cursor:pointer;border-radius:16px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);padding:18px 16px;text-align:left;display:flex;flex-direction:column;gap:2px;width:100%}
+button b{font-size:18px}
+button span{font-size:13px;color:var(--muted)}
+button.shop{background:var(--warm);border-color:var(--warm-line);color:var(--warm-ink)}
+button.shop span{color:var(--warm-ink);opacity:.8}
+button.prod{border-color:var(--accent)}
+button:active{transform:scale(.99)}
+#fallback{display:none;flex-direction:column;gap:10px;padding:14px;border:1.5px dashed var(--line);border-radius:14px;background:var(--panel)}
+#fallback.on{display:flex}
+#fallback input{font:inherit;font-size:16px;padding:12px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+#fallback .go{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);text-align:center;padding:14px}
+#msg{min-height:1.5em;font-size:14px;color:var(--muted)}
+#msg.err{color:var(--err)}
+</style>
+</head>
+<body>
+<main>
+  <h1>링크 도우미</h1>
+  <p>링크를 복사한 뒤 아래 버튼을 누르면 정작가 공장 대시보드가 열리면서 칸이 채워져요. 처음 한 번은 '클립보드 허용'을 눌러 주세요.</p>
+  <button class="shop" type="button" data-kind="s"><b>쇼핑쇼츠 레퍼런스로 붙여넣기</b><span>유튜브·틱톡·인스타 영상 또는 채널 링크</span></button>
+  <button class="prod" type="button" data-kind="p"><b>시니어 제품 링크로 붙여넣기</b><span>쿠팡 등 쇼핑 태그 제품의 판매 링크</span></button>
+  <div id="fallback">
+    <p id="fbText">클립보드를 바로 못 읽었어요. 아래 칸을 길게 눌러 붙여넣은 뒤 [보내기]를 눌러 주세요.</p>
+    <input id="fbInput" type="url" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="https://…" aria-label="링크">
+    <button class="go" type="button" id="fbGo"><b>보내기</b></button>
+  </div>
+  <div id="msg" role="status" aria-live="polite"></div>
+</main>
+<script>
+(() => {
+  const DASH = 'https://claude.ai/artifact/MjFAZZvju8B3JmxDVtvHHE';
+  const msg = document.getElementById('msg');
+  let kind = 's';
+  const say = (t, err) => { msg.textContent = t; msg.className = err ? 'err' : ''; };
+  const pick = t => { const m = String(t || '').match(/https?:\/\/[^\s"'<>]+/); return m ? m[0].replace(/[),.]+$/, '') : ''; };
+  const b64url = s => { const bytes = new TextEncoder().encode(s); let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b)); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  const send = url => { say('대시보드로 넘어가는 중…'); location.href = DASH + '#' + kind + '.' + b64url(url); };
+  const showFallback = () => { const f = document.getElementById('fallback'); f.classList.add('on'); document.getElementById('fbText').textContent = (kind === 's' ? '쇼핑 레퍼런스' : '시니어 제품') + ' 링크 · 클립보드를 바로 못 읽었어요. 아래 칸을 길게 눌러 붙여넣은 뒤 [보내기]를 눌러 주세요.'; const i = document.getElementById('fbInput'); i.value = ''; i.focus(); };
+  document.querySelectorAll('button[data-kind]').forEach(b => b.addEventListener('click', async () => {
+    kind = b.dataset.kind; say('');
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) throw new Error('no clipboard');
+      const url = pick(await navigator.clipboard.readText());
+      if (!url) { say('복사된 내용에 링크가 없어요. 링크를 먼저 복사해 주세요.', true); return; }
+      send(url);
+    } catch (e) { showFallback(); }
+  }));
+  document.getElementById('fbGo').addEventListener('click', () => {
+    const url = pick(document.getElementById('fbInput').value);
+    if (!url) { say('https://로 시작하는 링크를 넣어 주세요.', true); return; }
+    send(url);
+  });
+  document.getElementById('fbInput').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('fbGo').click(); });
+})();
+</script>
+</body>
+</html>
